@@ -7,6 +7,9 @@ import socket
 
 usrnm = input("Enter username: ")
 pswrd = input("Enter password: ")
+local_ip = input("Enter IP address (or press Enter to auto-detect): ")
+if local_ip.strip() == "":
+    local_ip = None
 addrs = psutil.net_if_addrs()
 
 def print_network_interfaces():
@@ -63,7 +66,8 @@ def connect_and_execute(ip, device_type, username, password):
     except Exception as e:
         print(f"Error connecting to {ip}: {e}")
 
-local_ip = get_connected_ip()
+if local_ip == None:
+    local_ip = get_connected_ip()
 print(f"IP Address: {local_ip}")
 print(f"Username: {usrnm}")
 print(f"Password: {pswrd}\n")
