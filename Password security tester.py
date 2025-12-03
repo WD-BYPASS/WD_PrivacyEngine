@@ -1,4 +1,4 @@
-import time
+import datetime
 import itertools
 import threading
 
@@ -54,18 +54,18 @@ def trypassword():
         print("Password not found within the specified length range.")
 
 
-start_hour = int(time.strftime("%H", time.localtime()))
-start_minute = int(time.strftime("%M", time.localtime()))
-start_second = int(time.strftime("%S", time.localtime()))
-start_micro = int(time.strftime("%f", time.localtime()))
+start_hour = int(datetime.strftime("%H", time.localtime()))
+start_minute = int(datetime.strftime("%M", time.localtime()))
+start_second = int(datetime.strftime("%S", time.localtime()))
+start_micro = int(datetime.strftime("%f", time.localtime()))
 start_time = f"{start_hour}:{start_minute}:{start_second}:{start_micro}"
 print(start_time)
 while input("Press Enter to start cracking the password...") == None:
     pass
 trypassword()
-end_hour = int(time.strftime("%H", time.localtime())) - start_hour
-end_minute = int(time.strftime("%M", time.localtime())) - start_minute
-end_second = int(time.strftime("%S", time.localtime())) - start_second
-end_micro = int(time.strftime("%f", time.localtime())) - start_micro
+end_hour = int(datetime.strftime("%H", time.localtime())) - start_hour
+end_minute = int(datetime.strftime("%M", time.localtime())) - start_minute
+end_second = int(datetime.strftime("%S", time.localtime())) - start_second
+end_micro = int(datetime.strftime("%f", time.localtime())) - start_micro
 end_time = f"{end_hour}hrs:{end_minute}mins:{end_second}secs:{end_micro}ms"
 print(f"Password \"{target_password}\" took {end_time} to crack.")
