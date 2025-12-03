@@ -70,6 +70,9 @@ def trypassword():
     if target_password in passlist:
         print(f"Password found in password list: {target_password}")
         return
+    if target_password in charlist:
+        print(f"Password found in character list: {target_password}")
+        return
     enqueue_tasks()
     threads = []
 
