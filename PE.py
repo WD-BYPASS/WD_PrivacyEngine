@@ -24,3 +24,8 @@ remote_device = {'device_type': 'autodetect',
                      'host': 'remote.host',
                      'username': usrnm,
                      'password': pswrd}
+
+guesser = SSHDetect(**remote_device)
+best_match = guesser.autodetect()
+print(best_match)
+print(guesser.potential_matches)
