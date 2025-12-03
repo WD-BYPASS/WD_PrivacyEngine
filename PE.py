@@ -22,10 +22,17 @@ def print_process_info():
     print(f"Executable Path: {current_process.exe()}")
     print(f"Command Line: {' '.join(current_process.cmdline())}")
 
-def get_local_ip():
-    hostname = socket.gethostname()
-    local_ip = socket.gethostbyname(hostname)
-    return local_ip
+def get_connected_ip():
+    try:
+        response = requests.get('https://api.ipify.org?format=text')
+        if response.status_code == 200:
+            return response.text
+        else:
+            print("Failed to get public IP address.")
+            return None
+    except Exception as e:
+        print(f"Error fetching public IP: {e}")
+        return None
 
 def get_device_type(ip, username, password):
     device = {
@@ -56,7 +63,7 @@ def connect_and_execute(ip, device_type, username, password):
     except Exception as e:
         print(f"Error connecting to {ip}: {e}")
 
-local_ip = get_local_ip()
+local_ip = get_connected_ip()
 subnet = '.'.join(local_ip.split('.')[:-1]) + '.0/24'
 for i in range(1, 255):
     ip = f"{subnet[:-4]}{i}"
@@ -69,6 +76,6 @@ for i in range(1, 255):
 
 print_network_interfaces()
 print_process_info()
-get_local_ip()
+get_connected_ip()
 get_device_type()
 connect_and_execute()
