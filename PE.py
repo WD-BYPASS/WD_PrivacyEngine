@@ -1,9 +1,11 @@
 import sys
 import os
 import requests
-from netmiko import ConnectHandler
+from netmiko import ConnectHandler, SSHDetect
 import psutil
 
+usrnm = input("Enter username: ")
+pswrd = input("Enter password: ")
 addrs = psutil.net_if_addrs()
 
 for interface_name, interface_addresses in addrs.items():
@@ -17,3 +19,8 @@ for interface_name, interface_addresses in addrs.items():
             print(f"  Netmask: {address.netmask}")
             print(f"  Broadcast: {address.broadcast}")
     print("-" * 20)
+
+remote_device = {'device_type': 'autodetect',
+                     'host': 'remote.host',
+                     'username': usrnm,
+                     'password': pswrd}
