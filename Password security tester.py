@@ -1,14 +1,19 @@
-import datetime
+import time
 import itertools
 import threading
+import queue
 
-charlist = ["A", "a", "B", "b", "C", "c", "D", "d", "E", "e", "F", "f", "G", "g", "H", "h", "I", "i", "J", "j", "K", "k", "L", "l", "M", "m", "N", "n", "O", "o", "P", "p", "Q", "q", "R", "r", "S", "s", "T", "t", "U", "u", "V", "v", "W", "w", "X", "x", "Y", "y", "Z", "z", "]", "[", "1", "2", "3", "4", "5", "6", "7", "8", "9", "0", "!", "@", "#", "$", "%", "^", "&", "*", "(", ")", "-", "_", "=", "+", "{", "}", "|", ":", ";", "\"", "'", "<", ">", ",", ".", "?", "/", "~", "`", " ", "\\", " ", "¡", "¢", "£", "¤", "¥", "¦", "§", "¨", "©", "ª", "«", "¬", "®", "¯", "°", "±", "²", "³", "´", "µ", "¶", "·", "¸", "¹", "º", "»", "¼", "½", "¾", "¿"]
+charlist = ("A", "a", "B", "b", "C", "c", "D", "d", "E", "e", "F", "f", "G", "g", "H", "h", "I", "i", "J", "j", "K", "k", "L", "l", "M", "m", "N", "n", "O", "o", "P", "p", "Q", "q", "R", "r", "S", "s", "T", "t", "U", "u", "V", "v", "W", "w", "X", "x", "Y", "y", "Z", "z", "]", "[", "1", "2", "3", "4", "5", "6", "7", "8", "9", "0", "!", "@", "#", "$", "%", "^", "&", "*", "(", ")", "-", "_", "=", "+", "{", "}", "|", ":", ";", "\"", "'", "<", ">", ",", ".", "?", "/", "~", "`", " ", "\\", " ", "¡", "¢", "£", "¤", "¥", "¦", "§", "¨", "©", "ª", "«", "¬", "®", "¯", "°", "±", "²", "³", "´", "µ", "¶", "·", "¸", "¹", "º", "»", "¼", "½", "¾", "¿")
+passlist = ("1234", "password", "letmein", "qwerty", "abc123", "welcome", "admin", "login", "123456", "iloveyou")
 target_password = input("Enter the password to crack: ")
 printmode = input("Enable print mode? (True/False): ").strip().lower() == 'true'
 maxlength = len(target_password)
 
 found_event = threading.Event()
 print_lock = threading.Lock()
+task_queue = queue.Queue()
+MAX_WORKERS = min(32, len(charlist))
+CHARS_PER_TASK = 4
 
 
 def check_password(pw):
@@ -29,21 +34,47 @@ def attempt_password(candidate):
     return False
 
 
-def brute_force_length(length):
-    if length <= 0:
-        return
-    for attempt in itertools.product(charlist, repeat=length):
-        if found_event.is_set():
+def enqueue_tasks():
+    for length in range(1, maxlength + 1):
+        for start in range(0, len(charlist), CHARS_PER_TASK):
+            end = min(start + CHARS_PER_TASK, len(charlist))
+            task_queue.put((length, start, end))
+
+
+def brute_force_worker():
+    while not found_event.is_set():
+        try:
+            length, start, end = task_queue.get_nowait()
+        except queue.Empty:
             return
-        if attempt_password(''.join(attempt)):
-            return
+
+        first_slice = charlist[start:end]
+
+        if length == 1:
+            for ch in first_slice:
+                if attempt_password(ch):
+                    return
+                if found_event.is_set():
+                    return
+            continue
+
+        iterables = [first_slice] + [charlist] * (length - 1)
+        for attempt in itertools.product(*iterables):
+            if attempt_password(''.join(attempt)):
+                return
+            if found_event.is_set():
+                return
 
 
 def trypassword():
+    if target_password in passlist:
+        print(f"Password found in password list: {target_password}")
+        return
+    enqueue_tasks()
     threads = []
 
-    for length in range(1, maxlength + 1):
-        thread = threading.Thread(target=brute_force_length, args=(length,))
+    for _ in range(MAX_WORKERS):
+        thread = threading.Thread(target=brute_force_worker)
         thread.start()
         threads.append(thread)
 
@@ -54,18 +85,26 @@ def trypassword():
         print("Password not found within the specified length range.")
 
 
-start_hour = int(datetime.strftime("%H", time.localtime()))
-start_minute = int(datetime.strftime("%M", time.localtime()))
-start_second = int(datetime.strftime("%S", time.localtime()))
-start_micro = int(datetime.strftime("%f", time.localtime()))
-start_time = f"{start_hour}:{start_minute}:{start_second}:{start_micro}"
-print(start_time)
-while input("Press Enter to start cracking the password...") == None:
-    pass
+
+input("Press Enter to start cracking the password...")
+current_time_nanoseconds = time.time_ns()
+current_time_microseconds = current_time_nanoseconds // 1000
+start_hour = int(time.strftime("%H", time.localtime()))
+start_minute = int(time.strftime("%M", time.localtime()))
+start_second = int(time.strftime("%S", time.localtime()))
+start_micro = int(current_time_microseconds)
 trypassword()
-end_hour = int(datetime.strftime("%H", time.localtime())) - start_hour
-end_minute = int(datetime.strftime("%M", time.localtime())) - start_minute
-end_second = int(datetime.strftime("%S", time.localtime())) - start_second
-end_micro = int(datetime.strftime("%f", time.localtime())) - start_micro
-end_time = f"{end_hour}hrs:{end_minute}mins:{end_second}secs:{end_micro}ms"
+current_time_nanoseconds = time.time_ns()
+current_time_microseconds = current_time_nanoseconds // 1000
+end_hour = int(time.strftime("%H", time.localtime())) - start_hour
+end_minute = int(time.strftime("%M", time.localtime())) - start_minute
+end_second = int(time.strftime("%S", time.localtime())) - start_second
+if end_second < 0:
+    end_second += 60
+    end_minute -= 1
+if end_minute < 0:
+    end_minute += 60
+    end_hour -= 1
+end_micro = int(current_time_microseconds) - start_micro
+end_time = f"{end_hour}hrs: {end_minute}mins: {end_second}secs: {end_micro}ms"
 print(f"Password \"{target_password}\" took {end_time} to crack.")
