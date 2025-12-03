@@ -64,6 +64,11 @@ def connect_and_execute(ip, device_type, username, password):
         print(f"Error connecting to {ip}: {e}")
 
 local_ip = get_connected_ip()
+print(f"IP Address: {local_ip}")
+print(f"Username: {usrnm}")
+print(f"Password: {pswrd}\n")
+print_network_interfaces()
+print_process_info()
 subnet = '.'.join(local_ip.split('.')[:-1]) + '.0/24'
 for i in range(1, 255):
     ip = f"{subnet[:-4]}{i}"
@@ -74,8 +79,3 @@ for i in range(1, 255):
     else:
         print(f"No device detected at IP {ip}")
 
-print_network_interfaces()
-print_process_info()
-get_connected_ip()
-get_device_type()
-connect_and_execute()
