@@ -1,9 +1,14 @@
+import os
 import time
 import itertools
 import threading
 import queue
 
-charlist = ("A", "a", "B", "b", "C", "c", "D", "d", "E", "e", "F", "f", "G", "g", "H", "h", "I", "i", "J", "j", "K", "k", "L", "l", "M", "m", "N", "n", "O", "o", "P", "p", "Q", "q", "R", "r", "S", "s", "T", "t", "U", "u", "V", "v", "W", "w", "X", "x", "Y", "y", "Z", "z", "]", "[", "1", "2", "3", "4", "5", "6", "7", "8", "9", "0", "!", "@", "#", "$", "%", "^", "&", "*", "(", ")", "-", "_", "=", "+", "{", "}", "|", ":", ";", "\"", "'", "<", ">", ",", ".", "?", "/", "~", "`", " ", "\\", " ", "¡", "¢", "£", "¤", "¥", "¦", "§", "¨", "©", "ª", "«", "¬", "®", "¯", "°", "±", "²", "³", "´", "µ", "¶", "·", "¸", "¹", "º", "»", "¼", "½", "¾", "¿", "Ñ", "ñ", "Ç", "ç", "Ö", "ö", "Ü", "ü", "Ä", "ä", "ß", "Α", "Β", "Γ", "Δ", "Ε", "Ζ", "Η", "Θ", "Ι", "Κ", "Λ", "Μ", "Ν", "Ξ", "Ο", "Π", "Ρ", "Σ", "Τ", "Υ", "Φ", "Χ", "Ψ", "Ω", "α", "β", "γ", "δ", "ε", "ζ", "η", "θ", "ι", "κ", "λ", "μ", "ν", "ξ", "ο", "π", "ρ", "σ", "τ", "υ", "φ", "χ", "ψ", "ω")
+charlist = ("A", "a", "B", "b", "C", "c", "D", "d", "E", "e", "F", "f", "G", "g", "H", "h", "I", "i", "J", "j", "K", "k", "L", "l", "M", "m", "N", "n", "O", "o", "P", "p", "Q", "q", "R", "r", "S", "s", "T", "t", "U", "u", "V", "v", "W", "w", "X", "x", "Y", "y", "Z", "z", "]", "[", "1", "2", "3", "4", "5", "6", "7", "8", "9", "0", "!", "@", "#", "$", "%", "^", "&", "*", "(", ")", "-", "_", "=", "+", "{", "}", "|", ":", ";", "\"", "'", "<", ">", ",", ".", "?", "/", "~", "`", " ", "\\", " ")
+additionalchar = ("¡", "¢", "£", "¤", "¥", "¦", "§", "¨", "©", "ª", "«", "¬", "®", "¯", "°", "±", "²", "³", "´", "µ", "¶", "·", "¸", "¹", "º", "»", "¼", "½", "¾", "¿", "Ñ", "ñ", "Ç", "ç", "Ö", "ö", "Ü", "ü", "Ä", "ä", "ß", "Α", "Β", "Γ", "Δ", "Ε", "Ζ", "Η", "Θ", "Ι", "Κ", "Λ", "Μ", "Ν", "Ξ", "Ο", "Π", "Ρ", "Σ", "Τ", "Υ", "Φ", "Χ", "Ψ", "Ω", "α", "β", "γ", "δ", "ε", "ζ", "η", "θ", "ι", "κ", "λ", "μ", "ν", "ξ", "ο", "π", "ρ", "σ", "τ", "υ", "φ", "χ", "ψ", "ω")
+BASE_CHAR_SET = set(charlist)
+ADDITIONAL_CHAR_SET = set(additionalchar)
+EXTENDED_CHARSET = charlist + tuple(ch for ch in additionalchar if ch not in BASE_CHAR_SET)
 passlist = ("1234", "password", "letmein", "qwerty", "abc123", "welcome", "admin", "login", "123456", "iloveyou", "welcome1", "password1", "12345", "123456789", "football", "monkey", "dragon", "baseball", "master", "hello", "freedom", "whatever", "qazwsx", "trustno1", "")
 target_password = input("Enter the password to crack: ")
 printmode = input("Enable print mode? (True/False): ").strip().lower() == 'true'
@@ -11,8 +16,7 @@ maxlength = len(target_password)
 
 found_event = threading.Event()
 print_lock = threading.Lock()
-task_queue = queue.Queue()
-MAX_WORKERS = min(32, len(charlist))
+MAX_WORKERS = min(32, (os.cpu_count() or 1) * 2)
 CHARS_PER_TASK = 4
 
 
@@ -34,21 +38,22 @@ def attempt_password(candidate):
     return False
 
 
-def enqueue_tasks():
+def enqueue_tasks(charset, task_queue):
+    char_len = len(charset)
     for length in range(1, maxlength + 1):
-        for start in range(0, len(charlist), CHARS_PER_TASK):
-            end = min(start + CHARS_PER_TASK, len(charlist))
+        for start in range(0, char_len, CHARS_PER_TASK):
+            end = min(start + CHARS_PER_TASK, char_len)
             task_queue.put((length, start, end))
 
 
-def brute_force_worker():
+def checks_worker(charset, task_queue):
     while not found_event.is_set():
         try:
             length, start, end = task_queue.get_nowait()
         except queue.Empty:
             return
 
-        first_slice = charlist[start:end]
+        first_slice = charset[start:end]
 
         if length == 1:
             for ch in first_slice:
@@ -58,34 +63,58 @@ def brute_force_worker():
                     return
             continue
 
-        iterables = [first_slice] + [charlist] * (length - 1)
+        iterables = [first_slice] + [charset] * (length - 1)
         for attempt in itertools.product(*iterables):
-            if attempt_password(''.join(attempt)):
+            candidate = ''.join(attempt)
+            if attempt_password(candidate):
                 return
             if found_event.is_set():
                 return
 
 
-def trypassword():
-    if target_password in passlist:
-        print(f"Password found in password list: {target_password}")
-        return
-    if target_password in charlist:
-        print(f"Password found in character list: {target_password}")
-        return
-    enqueue_tasks()
+def run_checks_with_charset(charset):
+    found_event.clear()
+    task_queue = queue.Queue()
+    enqueue_tasks(charset, task_queue)
     threads = []
 
-    for _ in range(MAX_WORKERS):
-        thread = threading.Thread(target=brute_force_worker)
+    worker_count = min(MAX_WORKERS, len(charset))
+    for _ in range(worker_count):
+        thread = threading.Thread(target=checks_worker, args=(charset, task_queue))
         thread.start()
         threads.append(thread)
 
     for thread in threads:
         thread.join()
 
-    if not found_event.is_set():
+    return found_event.is_set()
+
+
+def trypassword():
+    if target_password in passlist:
+        print(f"Password found in password list: {target_password}")
+        return
+    contains_only_base_chars = all(ch in BASE_CHAR_SET for ch in target_password)
+
+    if not contains_only_base_chars:
+        print("Detected characters outside the base character set. Running expanded search...")
+        if run_checks_with_charset(EXTENDED_CHARSET):
+            return
         print("Password not found within the specified length range.")
+        return
+
+    if run_checks_with_charset(charlist):
+        return
+
+    if any(ch in ADDITIONAL_CHAR_SET for ch in target_password):
+        print("Password appears to need additional characters. Expanding search...")
+    else:
+        print("Base character set exhausted, expanding search as a fallback...")
+
+    if run_checks_with_charset(EXTENDED_CHARSET):
+        return
+
+    print("Password not found within the specified length range.")
 
 
 
